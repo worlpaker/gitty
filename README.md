@@ -1,6 +1,7 @@
 # gitty
 
 <!--TODO: badges (release, github actions, codecov, go report, license) -->
+[![Go](https://github.com/worlpaker/gitty/actions/workflows/go.yml/badge.svg)](https://github.com/worlpaker/gitty/actions/workflows/go.yml)
 [![codecov](https://codecov.io/gh/worlpaker/gitty/graph/badge.svg?token=6T5V3C1IXE)](https://codecov.io/gh/worlpaker/gitty)
 
 ![gitty](_examples/gitty.gif)
