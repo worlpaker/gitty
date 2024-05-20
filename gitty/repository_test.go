@@ -113,6 +113,12 @@ func (m *mockError) GetContents(ctx context.Context, owner, repo, path string, o
 	if path == testContentFail {
 		return nil, testDownloadFailData, nil, nil
 	}
+	if ctx.Err() != nil {
+		if errors.Is(ctx.Err(), context.Canceled) {
+			return nil, nil, nil, context.Canceled
+		}
+		return nil, nil, nil, ErrTookTooLong
+	}
 	return nil, nil, nil, errMockContents
 }
 
