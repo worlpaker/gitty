@@ -4,7 +4,7 @@ go 1.22
 
 require (
 	github.com/brianvoe/gofakeit/v7 v7.0.4
-	github.com/google/go-github/v62 v62.0.0
+	github.com/google/go-github/v64 v64.0.0
 	github.com/spf13/cobra v1.8.1
 	github.com/stretchr/testify v1.9.0
 )
