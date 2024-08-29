@@ -21,23 +21,16 @@ var (
 
 // getGitHubRepo parses and extracts the repository path from a GitHub URL.
 func getGitHubRepo(url string) (string, error) {
-	h, hFound := strings.CutPrefix(url, hPrefix)
-	p, found := strings.CutPrefix(url, prefix)
-
-	switch {
-	case hFound:
-		if isInvalidFormat(h) {
-			return "", ErrNotValidURLFormat
+	prefixes := []string{hPrefix, prefix}
+	for _, pref := range prefixes {
+		if path, ok := strings.CutPrefix(url, pref); ok {
+			if isInvalidFormat(path) {
+				return "", ErrNotValidURLFormat
+			}
+			return path, nil
 		}
-		return h, nil
-	case found:
-		if isInvalidFormat(p) {
-			return "", ErrNotValidURLFormat
-		}
-		return p, nil
-	default:
-		return "", ErrNotValidURL
 	}
+	return "", ErrNotValidURL
 }
 
 // isInvalidFormat checks if the URL has an invalid format.
