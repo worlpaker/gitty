@@ -2,6 +2,7 @@
 
 ![GitHub Latest Release](https://img.shields.io/github/v/release/worlpaker/gitty?logo=github)
 [![Go](https://github.com/worlpaker/gitty/actions/workflows/go.yml/badge.svg)](https://github.com/worlpaker/gitty/actions/workflows/go.yml)
+[![CodeQL](https://github.com/worlpaker/gitty/actions/workflows/codeql.yml/badge.svg)](https://github.com/worlpaker/gitty/actions/workflows/codeql.yml)
 [![codecov](https://codecov.io/gh/worlpaker/gitty/graph/badge.svg?token=6T5V3C1IXE)](https://codecov.io/gh/worlpaker/gitty)
 [![Go Report Card](https://goreportcard.com/badge/github.com/worlpaker/gitty)](https://goreportcard.com/report/github.com/worlpaker/gitty)
 ![License](https://img.shields.io/github/license/worlpaker/gitty?logo=github)
