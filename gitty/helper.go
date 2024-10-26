@@ -15,8 +15,8 @@ const (
 )
 
 var (
-	ErrNotValidURL       = errors.New("url must starts with https://github.com/ or github.com/")
-	ErrNotValidURLFormat = errors.New("url format must be: https://github.com/owner/repo/tree/branch/directory")
+	ErrNotValidURL    = errors.New("url must starts with https://github.com/ or github.com/")
+	ErrNotValidFormat = errors.New("url format must be https://github.com/owner/repo/tree/branch/directory")
 )
 
 // getGitHubRepo parses and extracts the repository path from a GitHub URL.
@@ -24,20 +24,20 @@ func getGitHubRepo(url string) (string, error) {
 	prefixes := []string{hPrefix, prefix}
 	for _, pref := range prefixes {
 		if path, ok := strings.CutPrefix(url, pref); ok {
-			if isInvalidFormat(path) {
-				return "", ErrNotValidURLFormat
-			}
-			return path, nil
+			return validate(path)
 		}
 	}
 	return "", ErrNotValidURL
 }
 
-// isInvalidFormat checks if the URL has an invalid format.
-func isInvalidFormat(s string) bool {
+// validate checks if the URL has a valid format.
+func validate(s string) (string, error) {
 	// Valid format example is: https://github.com/owner/repo/tree/branch/directory
 	// After the domain, the expected format is: owner/repo/tree/branch/directory
-	return strings.Count(s, "/") < 4
+	if strings.Count(s, "/") < 4 {
+		return "", ErrNotValidFormat
+	}
+	return s, nil
 }
 
 // saveFile saves the content of the file at the specified path.

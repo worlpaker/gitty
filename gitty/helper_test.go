@@ -58,13 +58,13 @@ func TestGetGitHubRepo(t *testing.T) {
 			name:        "invalid https url format",
 			url:         "https://github.com/owner/repo",
 			expected:    "",
-			expectedErr: ErrNotValidURLFormat,
+			expectedErr: ErrNotValidFormat,
 		},
 		{
 			name:        "invalid url format",
 			url:         "github.com/owner/repo",
 			expected:    "",
-			expectedErr: ErrNotValidURLFormat,
+			expectedErr: ErrNotValidFormat,
 		},
 	}
 
@@ -77,43 +77,50 @@ func TestGetGitHubRepo(t *testing.T) {
 	}
 }
 
-func TestIsInvalidFormat(t *testing.T) {
+func TestValidate(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    string
-		expected bool
+		name        string
+		input       string
+		expected    string
+		expectedErr error
 	}{
 		{
-			name:     "valid format 1",
-			input:    "owner/repo/tree/branch/directory",
-			expected: false,
+			name:        "valid format 1",
+			input:       "owner/repo/tree/branch/directory",
+			expected:    "owner/repo/tree/branch/directory",
+			expectedErr: nil,
 		},
 		{
-			name:     "valid format 2",
-			input:    "owner/repo/tree/branch/directory1/directory2",
-			expected: false,
+			name:        "valid format 2",
+			input:       "owner/repo/tree/branch/directory1/directory2",
+			expected:    "owner/repo/tree/branch/directory1/directory2",
+			expectedErr: nil,
 		},
 		{
-			name:     "valid format 3",
-			input:    "owner/repo/tree/branch/directory1/directory2/file.txt",
-			expected: false,
+			name:        "valid format 3",
+			input:       "owner/repo/tree/branch/directory1/directory2/file.txt",
+			expected:    "owner/repo/tree/branch/directory1/directory2/file.txt",
+			expectedErr: nil,
 		},
 		{
-			name:     "invalid format 1",
-			input:    "owner/repo/directory",
-			expected: true,
+			name:        "invalid format 1",
+			input:       "owner/repo/directory",
+			expected:    "",
+			expectedErr: ErrNotValidFormat,
 		},
 		{
-			name:     "invalid format 2",
-			input:    "owner/repo.git",
-			expected: true,
+			name:        "invalid format 2",
+			input:       "owner/repo.git",
+			expected:    "",
+			expectedErr: ErrNotValidFormat,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			ok := isInvalidFormat(test.input)
-			assert.Equal(t, test.expected, ok)
+			path, err := validate(test.input)
+			assert.Equal(t, test.expected, path)
+			assert.Equal(t, test.expectedErr, err)
 		})
 	}
 }
