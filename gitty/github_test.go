@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/brianvoe/gofakeit/v7"
-	"github.com/google/go-github/v64/github"
+	"github.com/google/go-github/v66/github"
 	"github.com/stretchr/testify/assert"
 )
 

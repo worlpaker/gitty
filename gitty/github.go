@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/google/go-github/v64/github"
+	"github.com/google/go-github/v66/github"
 	"github.com/worlpaker/gitty/gitty/token"
 )
 
