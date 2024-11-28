@@ -46,7 +46,7 @@ func repository(c *github.Client) Repository {
 		},
 		Owner: "",
 		Repo:  "",
-		Ref:   "",
+		Ref:   nil,
 		Path:  "",
 	}
 }
@@ -63,7 +63,7 @@ func (g *GitHub) extract(url string) error {
 	strs := strings.Split(s, sep)
 	g.Owner = strs[0]
 	g.Repo = strs[1]
-	g.Ref = strs[3]
+	g.Ref = &github.RepositoryContentGetOptions{Ref: strs[3]}
 	g.Path = strings.Join(strs[4:], sep)
 
 	return nil
@@ -104,10 +104,7 @@ func (g *GitHub) downloadContents(ctx context.Context) error {
 func (g *GitHub) contents(ctx context.Context, wg *sync.WaitGroup, path string, errCh chan error) {
 	defer wg.Done()
 
-	opts := &github.RepositoryContentGetOptions{
-		Ref: g.Ref,
-	}
-	fileContent, directoryContent, _, err := g.Client.GetContents(ctx, g.Owner, g.Repo, path, opts)
+	fileContent, directoryContent, _, err := g.Client.GetContents(ctx, g.Owner, g.Repo, path, g.Ref)
 	if err != nil {
 		errCh <- err
 		return

@@ -13,7 +13,7 @@ type GitHub struct {
 	Client Client
 	Owner  string
 	Repo   string
-	Ref    string
+	Ref    *github.RepositoryContentGetOptions
 	Path   string
 }
 

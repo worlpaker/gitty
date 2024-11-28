@@ -42,7 +42,7 @@ func fakeRepository(c mockClient) Repository {
 		Client: c,
 		Owner:  "",
 		Repo:   "",
-		Ref:    "",
+		Ref:    nil,
 		Path:   "",
 	}
 }
@@ -157,7 +157,7 @@ func TestRepository(t *testing.T) {
 		},
 		Owner: "",
 		Repo:  "",
-		Ref:   "",
+		Ref:   nil,
 		Path:  "",
 	}
 	assert.Equal(t, expected, actual)
@@ -169,7 +169,7 @@ func TestExtract(t *testing.T) {
 	reset := func() {
 		r.(*GitHub).Owner = ""
 		r.(*GitHub).Repo = ""
-		r.(*GitHub).Ref = ""
+		r.(*GitHub).Ref = nil
 		r.(*GitHub).Path = ""
 
 	}
@@ -185,7 +185,7 @@ func TestExtract(t *testing.T) {
 			expected: &GitHub{
 				Owner: "owner",
 				Repo:  "repo",
-				Ref:   "branch",
+				Ref:   &github.RepositoryContentGetOptions{Ref: "branch"},
 				Path:  "directory",
 			},
 			expectedErr: nil,
@@ -196,7 +196,7 @@ func TestExtract(t *testing.T) {
 			expected: &GitHub{
 				Owner: "owner",
 				Repo:  "repo",
-				Ref:   "branch",
+				Ref:   &github.RepositoryContentGetOptions{Ref: "branch"},
 				Path:  "directory1/directory2",
 			},
 			expectedErr: nil,
@@ -207,7 +207,7 @@ func TestExtract(t *testing.T) {
 			expected: &GitHub{
 				Owner: "owner",
 				Repo:  "repo",
-				Ref:   "branch",
+				Ref:   &github.RepositoryContentGetOptions{Ref: "branch"},
 				Path:  "directory1/directory2/file.txt",
 			},
 			expectedErr: nil,
@@ -218,7 +218,7 @@ func TestExtract(t *testing.T) {
 			expected: &GitHub{
 				Owner: "",
 				Repo:  "",
-				Ref:   "",
+				Ref:   nil,
 				Path:  "",
 			},
 			expectedErr: ErrNotValidURL,
@@ -229,7 +229,7 @@ func TestExtract(t *testing.T) {
 			expected: &GitHub{
 				Owner: "",
 				Repo:  "",
-				Ref:   "",
+				Ref:   nil,
 				Path:  "",
 			},
 			expectedErr: ErrNotValidURL,
