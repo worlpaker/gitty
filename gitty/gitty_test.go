@@ -68,10 +68,9 @@ func TestDownload(t *testing.T) {
 		expected error
 	}{
 		{
-			name: "success download",
-			repo: fakeRepository(&mockSuccess{}),
-			url:  "https://github.com/owner/repo/tree/branch/directory",
-			// Path names got from -> repository_test.go `contentsData`.
+			name:     "success download",
+			repo:     fakeRepository(&mockSuccess{}),
+			url:      "https://github.com/owner/repo/tree/branch/directory",
 			paths:    []string{contentsData[0].GetPath(), contentsData[1].GetPath()},
 			expected: nil,
 		},

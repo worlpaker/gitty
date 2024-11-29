@@ -249,7 +249,7 @@ func TestExtract(t *testing.T) {
 	}
 }
 
-func TestDownloadFile(t *testing.T) {
+func TestGetFile(t *testing.T) {
 	// Discard output during tests.
 	defer func(stdout *os.File) {
 		os.Stdout = stdout
@@ -291,7 +291,7 @@ func TestDownloadFile(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			err := test.repo.downloadFile(test.url, test.path)
+			err := test.repo.getFile(test.url, test.path)
 			assert.Equal(t, test.expected, err)
 			if test.expected == nil {
 				err := os.Remove(test.path)
@@ -347,7 +347,7 @@ func TestDownloadContents(t *testing.T) {
 			name:     "error get contents",
 			repo:     fakeRepository(&mockError{}),
 			ctx:      context.Background(),
-			expected: errMockContents,
+			expected: fmt.Errorf("failed to download: %v", errMockContents),
 		},
 		{
 			name:     "error ctx with timeout",
@@ -365,6 +365,7 @@ func TestDownloadContents(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			if test.expected == nil {
 				t.Cleanup(func() {
 					paths := []string{contentsData[0].GetPath(), contentsData[1].GetPath()}
@@ -372,7 +373,7 @@ func TestDownloadContents(t *testing.T) {
 				})
 			}
 
-			err := test.repo.downloadContents(test.ctx)
+			err := test.repo.download(test.ctx)
 			assert.Equal(t, test.expected, err)
 		})
 	}
@@ -472,7 +473,7 @@ func TestClientStatus(t *testing.T) {
 			name:        "error with not authorized",
 			repo:        fakeRepository(&mockError{}),
 			expected:    "",
-			expectedErr: errMockRateLimit,
+			expectedErr: fmt.Errorf("failed to check status: %v", errMockRateLimit),
 		},
 	}
 
@@ -490,7 +491,7 @@ func TestClientStatus(t *testing.T) {
 			r, w, _ := os.Pipe()
 			os.Stdout = w
 
-			err := test.repo.clientStatus(context.Background())
+			err := test.repo.status(context.Background())
 			assert.Equal(t, test.expectedErr, err)
 
 			w.Close()
@@ -525,13 +526,13 @@ func TestClientAuth(t *testing.T) {
 		{
 			name:     "error auth",
 			repo:     fakeRepository(&mockError{}),
-			expected: errMockGetUser,
+			expected: fmt.Errorf("failed to check auth: %v", errMockGetUser),
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			err := test.repo.clientAuth(context.Background())
+			err := test.repo.auth(context.Background())
 			assert.Equal(t, test.expected, err)
 		})
 	}

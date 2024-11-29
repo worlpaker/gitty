@@ -28,11 +28,11 @@ var (
 // Repository defines methods for interacting with GitHub.
 type Repository interface {
 	extract(url string) error
-	downloadContents(ctx context.Context) error
+	download(ctx context.Context) error
 	contents(ctx context.Context, wg *sync.WaitGroup, path string, errCh chan error)
-	downloadFile(url, path string) error
-	clientStatus(ctx context.Context) error
-	clientAuth(ctx context.Context) error
+	getFile(url, path string) error
+	status(ctx context.Context) error
+	auth(ctx context.Context) error
 }
 
 // Ensure GitHub implements the Repository interface.
@@ -69,10 +69,12 @@ func (g *GitHub) extract(url string) error {
 	return nil
 }
 
-// downloadContents downloads the contents concurrently.
-func (g *GitHub) downloadContents(ctx context.Context) error {
+// download downloads the contents concurrently.
+func (g *GitHub) download(ctx context.Context) error {
 	wg := &sync.WaitGroup{}
 	errCh := make(chan error, 1)
+	ctx, cancel := context.WithTimeout(ctx, downloadLimit*time.Second)
+	defer cancel()
 
 	wg.Add(1)
 	go g.contents(ctx, wg, g.Path, errCh)
@@ -87,7 +89,7 @@ func (g *GitHub) downloadContents(ctx context.Context) error {
 	select {
 	case err := <-errCh:
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to download: %v", err)
 		}
 	case <-ctx.Done():
 		if errors.Is(ctx.Err(), context.Canceled) {
@@ -112,7 +114,7 @@ func (g *GitHub) contents(ctx context.Context, wg *sync.WaitGroup, path string, 
 
 	// If the URL points to a file, only the file is downloaded.
 	if len(directoryContent) == 0 && fileContent != nil {
-		if err := g.downloadFile(fileContent.GetDownloadURL(), fileContent.GetPath()); err != nil {
+		if err := g.getFile(fileContent.GetDownloadURL(), fileContent.GetPath()); err != nil {
 			errCh <- err
 			return
 		}
@@ -127,7 +129,7 @@ func (g *GitHub) contents(ctx context.Context, wg *sync.WaitGroup, path string, 
 			switch content.GetType() {
 			case "file":
 				// Download the file directly.
-				if err := g.downloadFile(content.GetDownloadURL(), content.GetPath()); err != nil {
+				if err := g.getFile(content.GetDownloadURL(), content.GetPath()); err != nil {
 					errCh <- err
 					return
 				}
@@ -140,8 +142,8 @@ func (g *GitHub) contents(ctx context.Context, wg *sync.WaitGroup, path string, 
 	}
 }
 
-// downloadFile downloads a file from the given URL and saves it.
-func (g *GitHub) downloadFile(url, path string) error {
+// getFile retrieves a file from the given URL and saves it.
+func (g *GitHub) getFile(url, path string) error {
 	if url == "" || path == "" {
 		return ErrInvalidPathURL
 	}
@@ -156,14 +158,17 @@ func (g *GitHub) downloadFile(url, path string) error {
 	return saveFile(g.Path, path, resp.Body)
 }
 
-// clientStatus reports the status of the client, the remaining hourly
+// status reports the status of the client, the remaining hourly
 // rate limit, and the time at which the current rate limit will reset.
 // This function does not reduce the rate limit. It can be used freely.
-func (g *GitHub) clientStatus(ctx context.Context) error {
+func (g *GitHub) status(ctx context.Context) error {
 	auth := "NOT Authorized"
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
 	rate, _, err := g.Client.RateLimit(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to check status: %v", err)
 	}
 
 	if token.Get() != "" && rate.Core.Limit > baseRateLimit {
@@ -176,13 +181,17 @@ func (g *GitHub) clientStatus(ctx context.Context) error {
 	return nil
 }
 
-// clientAuth reports the authenticated username, if applicable.
+// auth reports the authenticated username, if applicable.
 // This function reduces the rate limit for each request.
-func (g *GitHub) clientAuth(ctx context.Context) error {
+func (g *GitHub) auth(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
 	u, _, err := g.Client.GetUser(ctx, "")
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to check auth: %v", err)
 	}
+
 	fmt.Printf("Authenticated as @%s \n", u.GetLogin())
 
 	return nil

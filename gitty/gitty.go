@@ -14,8 +14,8 @@ type Git struct {
 // Gitty defines methods for interacting with cmd.
 type Gitty interface {
 	Status(ctx context.Context) error
-	Download(ctx context.Context, url string) error
 	Auth(ctx context.Context) error
+	Download(ctx context.Context, url string) error
 }
 
 // Ensure Git implements the Gitty interface.
@@ -32,47 +32,30 @@ func New() Gitty {
 
 // Status reports the status of the client.
 func (g *Git) Status(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-
-	if err := g.repo.clientStatus(ctx); err != nil {
-		return fmt.Errorf("failed to check status: %v", err)
-	}
-
-	return nil
+	return g.repo.status(ctx)
 }
 
-// Download downloads the contents of the given URL. It extracts url,
-// collects contents, and downloads files concurrently.
+// Auth reports the authenticated username.
+func (g *Git) Auth(ctx context.Context) error {
+	return g.repo.auth(ctx)
+}
+
+// Download downloads the contents from the given URL. It extracts the URL,
+// collects the contents, and downloads files concurrently.
 func (g *Git) Download(ctx context.Context, url string) error {
-	ctx, cancel := context.WithTimeout(ctx, downloadLimit*time.Second)
+	fmt.Println("Downloading:", url)
 	start := time.Now()
-	defer func() {
-		cancel()
-		fmt.Println(time.Since(start))
-	}()
 
 	if err := g.repo.extract(url); err != nil {
 		return err
 	}
 
-	fmt.Println("Downloading:", url)
-	if err := g.repo.downloadContents(ctx); err != nil {
-		return fmt.Errorf("failed to download: %v", err)
+	if err := g.repo.download(ctx); err != nil {
+		return err
 	}
+
 	fmt.Println("Download Completed")
-
-	return nil
-}
-
-// Auth reports the auth status of the user.
-func (g *Git) Auth(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-
-	if err := g.repo.clientAuth(ctx); err != nil {
-		return fmt.Errorf("failed to check auth: %v", err)
-	}
+	fmt.Println(time.Since(start))
 
 	return nil
 }
