@@ -3,10 +3,10 @@ module github.com/worlpaker/gitty
 go 1.22
 
 require (
-	github.com/brianvoe/gofakeit/v7 v7.1.1
+	github.com/brianvoe/gofakeit/v7 v7.1.2
 	github.com/google/go-github/v66 v66.0.0
 	github.com/spf13/cobra v1.8.1
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 )
 
 require (
