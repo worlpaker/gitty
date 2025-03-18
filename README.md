@@ -17,7 +17,7 @@ Gitty is a CLI tool that helps you download GitHub files and directories directl
 
 ### Go
 
-> Requires **Go 1.22+**
+> Requires **Go 1.23+**
 
 ```sh
 go install github.com/worlpaker/gitty@latest
