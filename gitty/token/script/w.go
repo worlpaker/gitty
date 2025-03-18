@@ -35,8 +35,8 @@ func save(key, value string) *Script {
 	}
 }
 
-// delete creates a script to delete a key from the os environment.
-func delete(key string) *Script {
+// del creates a script to delete a key from the os environment.
+func del(key string) *Script {
 	return &Script{
 		cmd: exec.Command("cmd", "/c", "reg delete HKCU\\Environment /F /V", key),
 		msg: msgDeleted,
@@ -47,7 +47,7 @@ func delete(key string) *Script {
 // it deletes the key. Otherwise, it saves into the os environment.
 func Run(key, value string) error {
 	if value == "" {
-		return delete(key).execute()
+		return del(key).execute()
 	}
 	return save(key, value).execute()
 }

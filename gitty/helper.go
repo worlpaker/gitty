@@ -42,31 +42,35 @@ func validate(s string) (string, error) {
 
 // saveFile saves the content of the file at the specified path.
 func saveFile(base, path string, body io.Reader) error {
-	const perm = 0755
-	data, err := io.ReadAll(body)
-	if err != nil {
-		return err
-	}
 	p, err := exactPath(base, path)
 	if err != nil {
 		return err
 	}
 	fmt.Println("Saving:", p)
 
-	if err := os.MkdirAll(filepath.Dir(p), perm); err != nil {
+	if errMkdir := os.MkdirAll(filepath.Dir(p), os.ModePerm); errMkdir != nil {
+		return errMkdir
+	}
+
+	f, err := os.OpenFile(p, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	if _, err := io.Copy(f, body); err != nil {
 		return err
 	}
 
-	return os.WriteFile(p, data, perm)
+	return nil
 }
 
 // exactPath removes unnecessary directories from the given path.
 func exactPath(base, path string) (string, error) {
-	basePath := filepath.Base(base)
 	relPath, err := filepath.Rel(base, path)
 	if err != nil {
 		return "", err
 	}
 
-	return filepath.Join(basePath, relPath), nil
+	return filepath.Join(filepath.Base(base), relPath), nil
 }

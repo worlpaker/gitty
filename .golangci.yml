@@ -1,0 +1,69 @@
+# yaml-language-server: $schema=https://golangci-lint.run/jsonschema/golangci.jsonschema.json
+
+run:
+  allow-parallel-runners: true
+  timeout: 3m
+
+linters:
+  disable-all: true
+  enable:
+    - asasalint
+    - bidichk
+    - bodyclose
+    - canonicalheader
+    - copyloopvar
+    - durationcheck
+    - errcheck
+    - errchkjson
+    - errname
+    - errorlint
+    - exhaustive
+    - fatcontext
+    - forcetypeassert
+    - gocheckcompilerdirectives
+    - gocognit
+    - gocritic
+    - gofmt
+    - gofumpt
+    - goprintffuncname
+    - gosec
+    - gosimple
+    - govet
+    - grouper
+    - inamedparam
+    - ineffassign
+    - intrange
+    - makezero
+    - mirror
+    - musttag
+    - nakedret
+    - nilerr
+    - nilnil
+    - nolintlint
+    - paralleltest
+    - perfsprint
+    - predeclared
+    - reassign
+    - revive
+    - staticcheck
+    - stylecheck
+    - testableexamples
+    - testifylint
+    - tparallel
+    - unconvert
+    - unparam
+    - unused
+    - usestdlibvars
+    - usetesting
+    - whitespace
+
+linters-settings:
+  govet:
+    enable-all: true
+
+issues:
+  exclude-rules:
+    - path: (.+)_test.go
+      linters:
+        - govet
+      text: fieldalignment

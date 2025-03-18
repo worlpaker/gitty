@@ -2,14 +2,14 @@ package cmd
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"os"
 	"os/exec"
-	"syscall"
 	"testing"
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/worlpaker/gitty/gitty"
 	"github.com/worlpaker/gitty/gitty/token"
 )
@@ -20,61 +20,57 @@ func fakeNewGitty() gitty.Gitty {
 
 type mock struct{}
 
-func (m *mock) Status(ctx context.Context) error {
+func (m *mock) Status(_ context.Context) error {
 	return nil
 }
-func (m *mock) Download(ctx context.Context, url string) error {
+
+func (m *mock) Download(_ context.Context, _ string) error {
 	return nil
 }
-func (m *mock) Auth(ctx context.Context) error {
+
+func (m *mock) Auth(_ context.Context) error {
 	return nil
 }
 
 func TestSubCommands(t *testing.T) {
+	t.Parallel()
 	c := &cobra.Command{}
 	subCommands(c)
 	assert.True(t, c.HasSubCommands())
 }
 
 func TestCmdSettings(t *testing.T) {
-	// Discard output during tests.
-	defer func(stdout *os.File) {
-		os.Stdout = stdout
-	}(os.Stdout)
-	os.Stdout = os.NewFile(uintptr(syscall.Stdin), os.DevNull)
-
+	t.Parallel()
 	c := &cobra.Command{}
 	cmdSettings(c)
 	f := c.FlagErrorFunc()
-	err := f(c, fmt.Errorf("test error"))
-	assert.Nil(t, err)
+	err := f(c, errors.New("test error"))
+	require.NoError(t, err)
 }
 
 func TestExecute(t *testing.T) {
-	// Set fake args and discard output during tests.
-	oldArgs := os.Args
-	defer func(stdout *os.File) {
-		os.Args = oldArgs
-		os.Stdout = stdout
-	}(os.Stdout)
-	os.Stdout = os.NewFile(uintptr(syscall.Stdin), os.DevNull)
+	t.Parallel()
+	// Set fake args during tests.
+	originalArgs := os.Args
+	t.Cleanup(func() {
+		os.Args = originalArgs
+	})
 	os.Args = []string{"test flag", "--check"}
 
 	err := Execute(context.Background(), "1.0.0")
-	assert.Nil(t, err)
+	require.NoError(t, err)
 }
 
 func TestRunRoot(t *testing.T) {
-	// Restore token and discard output during tests.
+	t.Parallel()
+	// Restore token.
 	localToken := token.Get()
-	defer func(stdout *os.File) {
+	t.Cleanup(func() {
 		if localToken != "" {
 			err := token.Set(localToken)
-			assert.Nil(t, err)
+			require.NoError(t, err)
 		}
-		os.Stdout = stdout
-	}(os.Stdout)
-	os.Stdout = os.NewFile(uintptr(syscall.Stdin), os.DevNull)
+	})
 
 	tests := []struct {
 		name  string
@@ -111,6 +107,7 @@ func TestRunRoot(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			c := &cobra.Command{}
 			g := fakeNewGitty()
 			runFunc := runRoot(context.Background(), &test.flags, g)
@@ -119,11 +116,12 @@ func TestRunRoot(t *testing.T) {
 			// The result might not be nil in very rare cases.
 			// Error: &exec.ExitError{ProcessState:(*os.ProcessState)(0xc00017a288), Stderr:[]uint8(nil)}
 			if err != nil {
-				if e, ok := err.(*exec.ExitError); ok && !e.Success() {
+				var execErr *exec.ExitError
+				if errors.As(err, &execErr) && !execErr.Success() {
 					return
 				}
 			}
-			assert.Nil(t, err)
+			require.NoError(t, err)
 		})
 	}
 }

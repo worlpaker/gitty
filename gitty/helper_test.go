@@ -15,9 +15,11 @@ import (
 
 	"github.com/brianvoe/gofakeit/v7"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetGitHubRepo(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		url         string
@@ -70,6 +72,7 @@ func TestGetGitHubRepo(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			repo, err := getGitHubRepo(test.url)
 			assert.Equal(t, test.expected, repo)
 			assert.Equal(t, test.expectedErr, err)
@@ -78,6 +81,7 @@ func TestGetGitHubRepo(t *testing.T) {
 }
 
 func TestValidate(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		input       string
@@ -118,6 +122,7 @@ func TestValidate(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			path, err := validate(test.input)
 			assert.Equal(t, test.expected, path)
 			assert.Equal(t, test.expectedErr, err)
@@ -129,17 +134,21 @@ type errReader int
 
 var errMockReadAll = errors.New("mock readall body error")
 
-func (errReader) Read(p []byte) (n int, err error) {
+func (errReader) Read(_ []byte) (n int, err error) {
 	return 0, errMockReadAll
 }
 
 func TestSaveFile(t *testing.T) {
-	// Discard output during tests.
-	defer func(stdout *os.File) {
-		os.Stdout = stdout
-	}(os.Stdout)
-	os.Stdout = os.NewFile(uintptr(syscall.Stdin), os.DevNull)
+	t.Parallel()
+	fakeBase := fmt.Sprintf("%s_%d", gofakeit.LoremIpsumWord(), gofakeit.Int())
+	fakePath := fmt.Sprintf("%s/%s_%d.txt", fakeBase, gofakeit.LoremIpsumWord(), gofakeit.Int())
+	t.Cleanup(func() {
+		err := os.RemoveAll(fakeBase)
+		require.NoError(t, err)
 
+		err = os.RemoveAll("tmp_err_reading_body")
+		require.NoError(t, err)
+	})
 	mkdirErr := func() error {
 		switch runtime.GOOS {
 		case "windows":
@@ -162,15 +171,22 @@ func TestSaveFile(t *testing.T) {
 	}{
 		{
 			name:     "save file successfully",
-			base:     "tmp",
-			path:     fmt.Sprintf("tmp/%s.txt", gofakeit.LoremIpsumWord()),
+			base:     fakeBase,
+			path:     fakePath,
 			body:     bytes.NewBufferString("test data"),
 			expected: nil,
 		},
 		{
+			name:     "error open file",
+			base:     "tmp",
+			path:     ".",
+			body:     nil,
+			expected: &os.PathError{Op: "open", Path: ".", Err: syscall.EISDIR},
+		},
+		{
 			name:     "error reading body",
-			base:     "tmp1",
-			path:     "tmp1/file1.txt",
+			base:     "tmp_err_reading_body",
+			path:     "tmp_err_reading_body/file1.txt",
 			body:     errReader(0),
 			expected: errMockReadAll,
 		},
@@ -192,19 +208,15 @@ func TestSaveFile(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			err := saveFile(test.base, test.path, test.body)
 			assert.Equal(t, test.expected, err)
-			if test.expected == nil {
-				err = os.Remove(test.path)
-				assert.Nil(t, err)
-				err = os.RemoveAll(test.base)
-				assert.Nil(t, err)
-			}
 		})
 	}
 }
 
 func TestExactPath(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		base        string
@@ -244,6 +256,7 @@ func TestExactPath(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			result, err := exactPath(test.base, test.path)
 			assert.Equal(t, test.expectedErr, err)
 			assert.Equal(t, test.expected, filepath.ToSlash(result))

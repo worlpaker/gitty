@@ -8,15 +8,14 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"path/filepath"
 	"sync"
-	"syscall"
 	"testing"
 	"time"
 
 	"github.com/brianvoe/gofakeit/v7"
 	"github.com/google/go-github/v67/github"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -47,7 +46,7 @@ func fakeRepository(c mockClient) Repository {
 	}
 }
 
-func (m *mockSuccess) Get(url string) (resp *http.Response, err error) {
+func (m *mockSuccess) Get(_ string) (resp *http.Response, err error) {
 	resp = &http.Response{
 		StatusCode: http.StatusOK,
 		Body:       io.NopCloser(bytes.NewReader([]byte("test data"))),
@@ -55,37 +54,45 @@ func (m *mockSuccess) Get(url string) (resp *http.Response, err error) {
 	return
 }
 
-func (m *mockError) Get(url string) (resp *http.Response, err error) {
+func (m *mockError) Get(_ string) (resp *http.Response, err error) {
 	return &http.Response{}, errMockGet
 }
 
-// pStr returns a pointer to the provided string.
-func pStr(s string) *string {
-	return &s
+// ptr returns a pointer to the provided value.
+func ptr[T any](t T) *T {
+	return &t
 }
 
+type contextPathKey string
+
+const pathKey contextPathKey = "fakepath"
+
 // contenstsData for testing Contents.
-var contentsData = []*github.RepositoryContent{
-	{
-		Type:        pStr("file"),
-		Path:        pStr(gofakeit.LoremIpsumWord()),
-		DownloadURL: pStr(gofakeit.LoremIpsumWord()),
-	},
-	{
-		Type:        pStr("file"),
-		Path:        pStr(gofakeit.LoremIpsumWord()),
-		DownloadURL: pStr(gofakeit.LoremIpsumWord()),
-	},
-	{
-		Type: pStr("dir"),
-		Path: pStr("dir"),
-	},
+func contentsData(firstPath, secondPath string) []*github.RepositoryContent {
+	return []*github.RepositoryContent{
+		{
+			Type:        ptr("file"),
+			Path:        ptr(firstPath),
+			DownloadURL: ptr(gofakeit.URL()),
+		},
+		{
+			Type:        ptr("file"),
+			Path:        ptr(secondPath),
+			DownloadURL: ptr(gofakeit.URL()),
+		},
+		{
+			Type: ptr("dir"),
+			Path: ptr("dir"),
+		},
+	}
 }
 
 // testDownloadFailData for testing Download failure.
-var testDownloadFailData = []*github.RepositoryContent{
-	{Type: pStr("file")},
-	{Type: pStr("file")},
+func testDownloadFailData() []*github.RepositoryContent {
+	return []*github.RepositoryContent{
+		{Type: ptr("file")},
+		{Type: ptr("file")},
+	}
 }
 
 // Contents test paths.
@@ -95,23 +102,28 @@ const (
 	testContentFail  = "testContentFail"
 )
 
-func (m *mockSuccess) GetContents(ctx context.Context, owner, repo, path string, opts *github.RepositoryContentGetOptions) (fileContent *github.RepositoryContent, directoryContent []*github.RepositoryContent, resp *github.Response, err error) {
+func (m *mockSuccess) GetContents(ctx context.Context, _, _, path string, _ *github.RepositoryContentGetOptions) (fileContent *github.RepositoryContent, directoryContent []*github.RepositoryContent, resp *github.Response, err error) {
+	fakeData, ok := ctx.Value(pathKey).([]*github.RepositoryContent)
+	if !ok {
+		fakeData = contentsData("tmp/file_0", "tmp/file_1")
+	}
+
 	switch path {
 	case testFileOnly:
-		return contentsData[0], nil, nil, nil
+		return fakeData[0], nil, nil, nil
 	case "dir":
-		return nil, contentsData[:len(contentsData)-1], nil, nil
+		return nil, fakeData[:len(fakeData)-1], nil, nil
+	default:
+		return nil, fakeData, nil, nil
 	}
-
-	return nil, contentsData, nil, nil
 }
 
-func (m *mockError) GetContents(ctx context.Context, owner, repo, path string, opts *github.RepositoryContentGetOptions) (fileContent *github.RepositoryContent, directoryContent []*github.RepositoryContent, resp *github.Response, err error) {
+func (m *mockError) GetContents(ctx context.Context, _, _, path string, _ *github.RepositoryContentGetOptions) (fileContent *github.RepositoryContent, directoryContent []*github.RepositoryContent, resp *github.Response, err error) {
 	if path == testDownloadFail {
-		return testDownloadFailData[0], nil, nil, nil
+		return testDownloadFailData()[0], nil, nil, nil
 	}
 	if path == testContentFail {
-		return nil, testDownloadFailData, nil, nil
+		return nil, testDownloadFailData(), nil, nil
 	}
 	if ctx.Err() != nil {
 		if errors.Is(ctx.Err(), context.Canceled) {
@@ -122,7 +134,7 @@ func (m *mockError) GetContents(ctx context.Context, owner, repo, path string, o
 	return nil, nil, nil, errMockContents
 }
 
-func (m *mockSuccess) RateLimit(ctx context.Context) (*github.RateLimits, *github.Response, error) {
+func (m *mockSuccess) RateLimit(_ context.Context) (*github.RateLimits, *github.Response, error) {
 	r := &github.RateLimits{
 		Core: &github.Rate{
 			Limit:     5000,
@@ -133,22 +145,23 @@ func (m *mockSuccess) RateLimit(ctx context.Context) (*github.RateLimits, *githu
 	return r, nil, nil
 }
 
-func (m *mockError) RateLimit(ctx context.Context) (*github.RateLimits, *github.Response, error) {
+func (m *mockError) RateLimit(_ context.Context) (*github.RateLimits, *github.Response, error) {
 	return nil, nil, errMockRateLimit
 }
 
-func (m *mockSuccess) GetUser(ctx context.Context, user string) (*github.User, *github.Response, error) {
+func (m *mockSuccess) GetUser(_ context.Context, user string) (*github.User, *github.Response, error) {
 	u := &github.User{
 		Name: &user,
 	}
 	return u, nil, nil
 }
 
-func (m *mockError) GetUser(ctx context.Context, user string) (*github.User, *github.Response, error) {
+func (m *mockError) GetUser(_ context.Context, _ string) (*github.User, *github.Response, error) {
 	return nil, nil, errMockGetUser
 }
 
 func TestRepository(t *testing.T) {
+	t.Parallel()
 	c := github.NewClient(nil)
 	actual := repository(c)
 	expected := &GitHub{
@@ -164,15 +177,7 @@ func TestRepository(t *testing.T) {
 }
 
 func TestExtract(t *testing.T) {
-	c := &mockSuccess{}
-	r := fakeRepository(c)
-	reset := func() {
-		r.(*GitHub).Owner = ""
-		r.(*GitHub).Repo = ""
-		r.(*GitHub).Ref = nil
-		r.(*GitHub).Path = ""
-
-	}
+	t.Parallel()
 	tests := []struct {
 		name        string
 		url         string
@@ -237,28 +242,29 @@ func TestExtract(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		err := r.extract(test.url)
 		t.Run(test.name, func(t *testing.T) {
-			t.Cleanup(reset)
+			t.Parallel()
+			r, ok := fakeRepository(&mockSuccess{}).(*GitHub)
+			assert.True(t, ok)
+			err := r.extract(test.url)
 			assert.Equal(t, test.expectedErr, err)
-			assert.Equal(t, test.expected.Owner, r.(*GitHub).Owner)
-			assert.Equal(t, test.expected.Repo, r.(*GitHub).Repo)
-			assert.Equal(t, test.expected.Ref, r.(*GitHub).Ref)
-			assert.Equal(t, test.expected.Path, r.(*GitHub).Path)
+			assert.Equal(t, test.expected.Owner, r.Owner)
+			assert.Equal(t, test.expected.Repo, r.Repo)
+			assert.Equal(t, test.expected.Ref, r.Ref)
+			assert.Equal(t, test.expected.Path, r.Path)
 		})
 	}
 }
 
 func TestGetFile(t *testing.T) {
-	// Discard output during tests.
-	defer func(stdout *os.File) {
-		os.Stdout = stdout
-	}(os.Stdout)
-	os.Stdout = os.NewFile(uintptr(syscall.Stdin), os.DevNull)
-
-	fakePath := gofakeit.LoremIpsumWord()
+	t.Parallel()
+	fakeBase := fmt.Sprintf("%s_%d", gofakeit.LoremIpsumWord(), gofakeit.Int())
 	// Don't use gofakeit.FileExtension(), it might create "zip", "rar".
-	fakeExt := "go"
+	fakePath := fmt.Sprintf("%s/%s_%d.go", fakeBase, gofakeit.LoremIpsumWord(), gofakeit.Int())
+	t.Cleanup(func() {
+		err := os.RemoveAll(fakeBase)
+		require.NoError(t, err)
+	})
 	tests := []struct {
 		name     string
 		repo     Repository
@@ -277,48 +283,41 @@ func TestGetFile(t *testing.T) {
 			name:     "successfully download file",
 			repo:     fakeRepository(&mockSuccess{}),
 			url:      gofakeit.URL(),
-			path:     fmt.Sprintf("%s/%s.%s", fakePath, fakePath, fakeExt),
+			path:     fakePath,
 			expected: nil,
 		},
 		{
 			name:     "error download file",
 			repo:     fakeRepository(&mockError{}),
 			url:      gofakeit.URL(),
-			path:     fmt.Sprintf("%s/%s.%s", fakePath, fakePath, fakeExt),
+			path:     fakePath,
 			expected: errMockGet,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			err := test.repo.getFile(test.url, test.path)
 			assert.Equal(t, test.expected, err)
-			if test.expected == nil {
-				err := os.Remove(test.path)
-				assert.Nil(t, err)
-				err = os.RemoveAll(filepath.Dir(test.path))
-				assert.Nil(t, err)
-			}
 		})
 	}
 }
 
-// deleteTestFiles removes test files after the test.
-func deleteTestFiles(t *testing.T, paths ...string) {
-	t.Helper()
-	for _, path := range paths {
-		err := os.RemoveAll(path)
-		assert.Nil(t, err)
-	}
-}
-
 func TestDownloadContents(t *testing.T) {
-	// Discard output during tests.
-	defer func(stdout *os.File) {
-		os.Stdout = stdout
-	}(os.Stdout)
-	os.Stdout = os.NewFile(uintptr(syscall.Stdin), os.DevNull)
+	t.Parallel()
 
+	fakeBase := fmt.Sprintf("%s_%d", gofakeit.LoremIpsumWord(), gofakeit.Int())
+	fakeFirstPath := fmt.Sprintf("%s/%s_%d.txt", fakeBase, gofakeit.LoremIpsumWord(), gofakeit.Int())
+	fakeSecondPath := fmt.Sprintf("%s/%s_%d.txt", fakeBase, gofakeit.LoremIpsumWord(), gofakeit.Int())
+	t.Cleanup(func() {
+		err := os.RemoveAll(fakeBase)
+		require.NoError(t, err)
+	})
+
+	ctxfakePath := func() context.Context {
+		return context.WithValue(context.Background(), pathKey, contentsData(fakeFirstPath, fakeSecondPath))
+	}
 	ctxTimeOut := func() context.Context {
 		ctx, cancel := context.WithTimeout(context.Background(), -10*time.Second)
 		defer cancel()
@@ -339,7 +338,7 @@ func TestDownloadContents(t *testing.T) {
 		{
 			name:     "successfully download directories and files",
 			repo:     fakeRepository(&mockSuccess{}),
-			ctx:      context.Background(),
+			ctx:      ctxfakePath(),
 			path:     "directory",
 			expected: nil,
 		},
@@ -347,7 +346,7 @@ func TestDownloadContents(t *testing.T) {
 			name:     "error get contents",
 			repo:     fakeRepository(&mockError{}),
 			ctx:      context.Background(),
-			expected: fmt.Errorf("failed to download: %v", errMockContents),
+			expected: fmt.Errorf("failed to download: %w", errMockContents),
 		},
 		{
 			name:     "error ctx with timeout",
@@ -366,13 +365,6 @@ func TestDownloadContents(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-			if test.expected == nil {
-				t.Cleanup(func() {
-					paths := []string{contentsData[0].GetPath(), contentsData[1].GetPath()}
-					deleteTestFiles(t, paths...)
-				})
-			}
-
 			err := test.repo.download(test.ctx)
 			assert.Equal(t, test.expected, err)
 		})
@@ -380,59 +372,63 @@ func TestDownloadContents(t *testing.T) {
 }
 
 func TestContents(t *testing.T) {
-	// Discard output during tests.
-	defer func(stdout *os.File) {
-		os.Stdout = stdout
-	}(os.Stdout)
-	os.Stdout = os.NewFile(uintptr(syscall.Stdin), os.DevNull)
+	t.Parallel()
+
+	fakeBase := fmt.Sprintf("%s_%d", gofakeit.LoremIpsumWord(), gofakeit.Int())
+	fakeFirstPath := fmt.Sprintf("%s/%s_%d.txt", fakeBase, gofakeit.LoremIpsumWord(), gofakeit.Int())
+	fakeSecondPath := fmt.Sprintf("%s/%s_%d.txt", fakeBase, gofakeit.LoremIpsumWord(), gofakeit.Int())
+	t.Cleanup(func() {
+		err := os.RemoveAll(fakeBase)
+		require.NoError(t, err)
+	})
+	ctxfakePath := func() context.Context {
+		return context.WithValue(context.Background(), pathKey, contentsData(fakeFirstPath, fakeSecondPath))
+	}
 
 	tests := []struct {
-		name      string
-		repo      Repository
-		path      string
-		filePaths []string
-		expected  error
+		name     string
+		repo     Repository
+		ctx      context.Context
+		path     string
+		expected error
 	}{
 		{
-			name:      "successfully get contents with directories",
-			repo:      fakeRepository(&mockSuccess{}),
-			path:      "directory",
-			filePaths: []string{contentsData[0].GetPath(), contentsData[1].GetPath()},
-			expected:  nil,
+			name:     "successfully get contents with directories",
+			repo:     fakeRepository(&mockSuccess{}),
+			ctx:      ctxfakePath(),
+			path:     "directory",
+			expected: nil,
 		},
 		{
-			name:      "successfully get contents file only",
-			repo:      fakeRepository(&mockSuccess{}),
-			path:      testFileOnly,
-			filePaths: []string{contentsData[0].GetPath()},
-			expected:  nil,
+			name:     "successfully get contents file only",
+			repo:     fakeRepository(&mockSuccess{}),
+			ctx:      ctxfakePath(),
+			path:     testFileOnly,
+			expected: nil,
 		},
 		{
 			name:     "error contents",
 			repo:     fakeRepository(&mockError{}),
+			ctx:      context.Background(),
 			expected: errMockContents,
 		},
 		{
 			name:     "error downloading file",
 			path:     testContentFail,
 			repo:     fakeRepository(&mockError{}),
+			ctx:      context.Background(),
 			expected: ErrInvalidPathURL,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if test.expected == nil {
-				t.Cleanup(func() {
-					deleteTestFiles(t, test.filePaths...)
-				})
-			}
-
+			t.Parallel()
 			wg := &sync.WaitGroup{}
 			errCh := make(chan error, 1)
 
 			wg.Add(1)
-			go test.repo.contents(context.Background(), wg, test.path, errCh)
+			go test.repo.contents(test.ctx, wg, test.path, errCh)
 			go func() {
 				defer func() {
 					wg.Wait()
@@ -473,18 +469,17 @@ func TestClientStatus(t *testing.T) {
 			name:        "error with not authorized",
 			repo:        fakeRepository(&mockError{}),
 			expected:    "",
-			expectedErr: fmt.Errorf("failed to check status: %v", errMockRateLimit),
+			expectedErr: fmt.Errorf("failed to check status: %w", errMockRateLimit),
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			if test.auth {
-				err := os.Setenv(tokenKey, gofakeit.LoremIpsumWord())
-				assert.Nil(t, err)
+				t.Setenv(tokenKey, gofakeit.LoremIpsumWord())
 				t.Cleanup(func() {
 					err := os.Unsetenv(tokenKey)
-					assert.Nil(t, err)
+					require.NoError(t, err)
 				})
 			}
 			old := os.Stdout
@@ -499,7 +494,7 @@ func TestClientStatus(t *testing.T) {
 
 			var buf bytes.Buffer
 			_, err = io.Copy(&buf, r)
-			assert.Nil(t, err)
+			require.NoError(t, err)
 			actual := buf.String()
 			assert.Equal(t, test.expected, actual)
 		})
@@ -507,11 +502,7 @@ func TestClientStatus(t *testing.T) {
 }
 
 func TestClientAuth(t *testing.T) {
-	// Discard output during tests.
-	defer func(stdout *os.File) {
-		os.Stdout = stdout
-	}(os.Stdout)
-	os.Stdout = os.NewFile(uintptr(syscall.Stdin), os.DevNull)
+	t.Parallel()
 
 	tests := []struct {
 		name     string
@@ -526,12 +517,13 @@ func TestClientAuth(t *testing.T) {
 		{
 			name:     "error auth",
 			repo:     fakeRepository(&mockError{}),
-			expected: fmt.Errorf("failed to check auth: %v", errMockGetUser),
+			expected: fmt.Errorf("failed to check auth: %w", errMockGetUser),
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			err := test.repo.auth(context.Background())
 			assert.Equal(t, test.expected, err)
 		})

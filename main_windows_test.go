@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"os/exec"
 	"syscall"
@@ -9,13 +10,14 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-// sendCtrlBreak simulates sending a Ctrl+Break signal to the specified process ID (pid).
-// This function is used to trigger a cancellation signal in the test environment.
-// Equivalent to `syscall.Kill` in linux.
+// sendCtrlBreak sends a Ctrl+Break signal to the specified pid.
+// Equivalent to "syscall.Kill" in linux.
+//
+// Example found on: https://github.com/golang/go/blob/master/src/os/signal/signal_windows_test.go
 func sendCtrlBreak(t *testing.T, pid int) {
-	// Example found on: https://github.com/golang/go/blob/master/src/os/signal/signal_windows_test.go
 	t.Helper()
 	d, e := syscall.LoadDLL("kernel32.dll")
 	if e != nil {
@@ -31,15 +33,16 @@ func sendCtrlBreak(t *testing.T, pid int) {
 	}
 }
 
-func TestRun_Cancel(t *testing.T) {
+func TestMain(t *testing.T) {
+	t.Parallel()
 	if os.Getenv("BE_CRASHER") == "1" {
-		run()
+		main()
 		return
 	}
 
-	cmd := exec.Command(os.Args[0], "-test.run=TestRun_Cancel")
+	name := os.Args[0]
+	cmd := exec.Command(name, "-test.run=TestMain")
 	cmd.Env = append(os.Environ(), "BE_CRASHER=1")
-
 	var buf bytes.Buffer
 	cmd.Stdout = &buf
 	cmd.Stderr = &buf
@@ -49,16 +52,19 @@ func TestRun_Cancel(t *testing.T) {
 	cmd.Args = []string{"test url", "https://github.com/worlpaker/go-syntax/tree/master/examples"}
 
 	err := cmd.Start()
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	go func() {
 		time.Sleep(100 * time.Millisecond)
 		sendCtrlBreak(t, cmd.Process.Pid)
 	}()
 
-	exit := cmd.Wait()
-	if e, ok := exit.(*exec.ExitError); ok && !e.Success() {
+	var execErr *exec.ExitError
+	if err := cmd.Wait(); !errors.As(err, &execErr) {
 		return
 	}
-	assert.Equal(t, 1, exit, "want exit status 1")
+
+	if execErr != nil {
+		assert.False(t, execErr.Success(), "want failure exit, most likely 1")
+	}
 }

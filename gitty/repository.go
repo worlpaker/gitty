@@ -36,7 +36,7 @@ type Repository interface {
 }
 
 // Ensure GitHub implements the Repository interface.
-var _ Repository = &GitHub{}
+var _ Repository = (*GitHub)(nil)
 
 // repository creates a GitHub repository with default values.
 func repository(c *github.Client) Repository {
@@ -89,7 +89,7 @@ func (g *GitHub) download(ctx context.Context) error {
 	select {
 	case err := <-errCh:
 		if err != nil {
-			return fmt.Errorf("failed to download: %v", err)
+			return fmt.Errorf("failed to download: %w", err)
 		}
 	case <-ctx.Done():
 		if errors.Is(ctx.Err(), context.Canceled) {
@@ -147,8 +147,8 @@ func (g *GitHub) getFile(url, path string) error {
 	if url == "" || path == "" {
 		return ErrInvalidPathURL
 	}
-
 	fmt.Println("Downloading:", path)
+
 	resp, err := g.Client.Get(url)
 	if err != nil {
 		return err
@@ -162,15 +162,15 @@ func (g *GitHub) getFile(url, path string) error {
 // rate limit, and the time at which the current rate limit will reset.
 // This function does not reduce the rate limit. It can be used freely.
 func (g *GitHub) status(ctx context.Context) error {
-	auth := "NOT Authorized"
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	rate, _, err := g.Client.RateLimit(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to check status: %v", err)
+		return fmt.Errorf("failed to check status: %w", err)
 	}
 
+	auth := "NOT Authorized"
 	if token.Get() != "" && rate.Core.Limit > baseRateLimit {
 		auth = "Authorized"
 	}
@@ -189,7 +189,7 @@ func (g *GitHub) auth(ctx context.Context) error {
 
 	u, _, err := g.Client.GetUser(ctx, "")
 	if err != nil {
-		return fmt.Errorf("failed to check auth: %v", err)
+		return fmt.Errorf("failed to check auth: %w", err)
 	}
 
 	fmt.Printf("Authenticated as @%s \n", u.GetLogin())

@@ -4,21 +4,22 @@ import (
 	"testing"
 
 	"github.com/spf13/cobra"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCmdFlags(t *testing.T) {
+	t.Parallel()
 	c := &cobra.Command{}
 	f := &flags{}
 
 	cmdFlags(c, f)
 
 	_, err := c.Flags().GetString("set")
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	_, err = c.Flags().GetBool("auth")
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	_, err = c.Flags().GetBool("check")
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	_, err = c.Flags().GetBool("unset")
-	assert.Nil(t, err)
+	require.NoError(t, err)
 }

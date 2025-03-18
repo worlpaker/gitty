@@ -19,7 +19,7 @@ type Gitty interface {
 }
 
 // Ensure Git implements the Gitty interface.
-var _ Gitty = &Git{}
+var _ Gitty = (*Git)(nil)
 
 // New creates a new Gitty.
 func New() Gitty {

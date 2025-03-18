@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"syscall"
 	"testing"
 
 	"github.com/brianvoe/gofakeit/v7"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func fakeNew(fakeRepo Repository) Gitty {
@@ -16,17 +16,13 @@ func fakeNew(fakeRepo Repository) Gitty {
 }
 
 func TestNewRepo(t *testing.T) {
+	t.Parallel()
 	r := New()
 	assert.NotNil(t, r)
 }
 
 func TestStatus(t *testing.T) {
-	// Discard output during tests.
-	defer func(stdout *os.File) {
-		os.Stdout = stdout
-	}(os.Stdout)
-	os.Stdout = os.NewFile(uintptr(syscall.Stdin), os.DevNull)
-
+	t.Parallel()
 	tests := []struct {
 		name     string
 		repo     Repository
@@ -40,12 +36,13 @@ func TestStatus(t *testing.T) {
 		{
 			name:     "error status",
 			repo:     fakeRepository(&mockError{}),
-			expected: fmt.Errorf("failed to check status: %v", errMockRateLimit),
+			expected: fmt.Errorf("failed to check status: %w", errMockRateLimit),
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			g := fakeNew(test.repo)
 			err := g.Status(context.Background())
 			assert.Equal(t, test.expected, err)
@@ -54,67 +51,68 @@ func TestStatus(t *testing.T) {
 }
 
 func TestDownload(t *testing.T) {
-	// Discard output during tests.
-	defer func(stdout *os.File) {
-		os.Stdout = stdout
-	}(os.Stdout)
-	os.Stdout = os.NewFile(uintptr(syscall.Stdin), os.DevNull)
+	t.Parallel()
+
+	fakeBase := fmt.Sprintf("%s_%d", gofakeit.LoremIpsumWord(), gofakeit.Int())
+	fakeFirstPath := fmt.Sprintf("%s/%s_%d.txt", fakeBase, gofakeit.LoremIpsumWord(), gofakeit.Int())
+	fakeSecondPath := fmt.Sprintf("%s/%s_%d.txt", fakeBase, gofakeit.LoremIpsumWord(), gofakeit.Int())
+	t.Cleanup(func() {
+		err := os.RemoveAll(fakeBase)
+		require.NoError(t, err)
+	})
+	ctxfakePath := func() context.Context {
+		return context.WithValue(context.Background(), pathKey, contentsData(fakeFirstPath, fakeSecondPath))
+	}
 
 	tests := []struct {
 		name     string
 		repo     Repository
+		ctx      context.Context
 		url      string
-		paths    []string
 		expected error
 	}{
 		{
 			name:     "success download",
 			repo:     fakeRepository(&mockSuccess{}),
+			ctx:      ctxfakePath(),
 			url:      "https://github.com/owner/repo/tree/branch/directory",
-			paths:    []string{contentsData[0].GetPath(), contentsData[1].GetPath()},
 			expected: nil,
 		},
 		{
 			name:     "error extract",
 			repo:     fakeRepository(&mockSuccess{}),
+			ctx:      context.Background(),
 			url:      gofakeit.URL(),
 			expected: ErrNotValidURL,
 		},
 		{
 			name:     "error content",
 			repo:     fakeRepository(&mockError{}),
+			ctx:      context.Background(),
 			url:      "https://github.com/owner/repo/tree/branch/directory",
-			expected: fmt.Errorf("failed to download: %v", errMockContents),
+			expected: fmt.Errorf("failed to download: %w", errMockContents),
 		},
 		{
 			name:     "error download file",
 			repo:     fakeRepository(&mockError{}),
-			url:      fmt.Sprintf("https://github.com/owner/repo/tree/branch/%s", testDownloadFail),
-			expected: fmt.Errorf("failed to download: %v", ErrInvalidPathURL),
+			ctx:      context.Background(),
+			url:      "https://github.com/owner/repo/tree/branch/" + testDownloadFail,
+			expected: fmt.Errorf("failed to download: %w", ErrInvalidPathURL),
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if test.expected == nil {
-				t.Cleanup(func() {
-					deleteTestFiles(t, test.paths...)
-				})
-			}
+			t.Parallel()
 			g := fakeNew(test.repo)
-			err := g.Download(context.Background(), test.url)
+			err := g.Download(test.ctx, test.url)
 			assert.Equal(t, test.expected, err)
 		})
 	}
 }
 
 func TestAuth(t *testing.T) {
-	// Discard output during tests.
-	defer func(stdout *os.File) {
-		os.Stdout = stdout
-	}(os.Stdout)
-	os.Stdout = os.NewFile(uintptr(syscall.Stdin), os.DevNull)
-
+	t.Parallel()
 	tests := []struct {
 		name     string
 		repo     Repository
@@ -128,12 +126,13 @@ func TestAuth(t *testing.T) {
 		{
 			name:     "error status",
 			repo:     fakeRepository(&mockError{}),
-			expected: fmt.Errorf("failed to check auth: %v", errMockGetUser),
+			expected: fmt.Errorf("failed to check auth: %w", errMockGetUser),
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			g := fakeNew(test.repo)
 			err := g.Auth(context.Background())
 			assert.Equal(t, test.expected, err)

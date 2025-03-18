@@ -6,12 +6,12 @@ import (
 	"io"
 	"net/http"
 	"os"
-
 	"testing"
 
 	"github.com/brianvoe/gofakeit/v7"
 	"github.com/google/go-github/v67/github"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewClient(t *testing.T) {
@@ -37,20 +37,15 @@ func TestNewClient(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if !test.auth {
-				err := os.Unsetenv(tokenKey)
-				assert.Nil(t, err)
-				client := newClient()
-				assert.Equal(t, test.expected, client)
-			} else {
-				err := os.Setenv(tokenKey, fakeValue)
-				assert.Nil(t, err)
-				t.Cleanup(func() {
-					err = os.Unsetenv(tokenKey)
-					assert.Nil(t, err)
-				})
+			if test.auth {
+				t.Setenv(tokenKey, fakeValue)
 				client := newClient()
 				assert.Equal(t, test.expected.UserAgent, client.UserAgent)
+			} else {
+				err := os.Unsetenv(tokenKey)
+				require.NoError(t, err)
+				client := newClient()
+				assert.Equal(t, test.expected, client)
 			}
 		})
 	}
@@ -60,7 +55,7 @@ var mockGetBody = []byte(`{"data":"test"}`)
 
 type mock struct{}
 
-func (m mock) RoundTrip(req *http.Request) (*http.Response, error) {
+func (m mock) RoundTrip(_ *http.Request) (*http.Response, error) {
 	resp := &http.Response{
 		StatusCode: http.StatusOK,
 		Body:       io.NopCloser(bytes.NewReader(mockGetBody)),
@@ -79,35 +74,41 @@ func setup() *service {
 }
 
 func TestGet(t *testing.T) {
+	t.Parallel()
 	s := setup()
+
 	resp, err := s.Get("https://test.com")
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	defer resp.Body.Close()
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
 	expectedBody, _ := io.ReadAll(resp.Body)
-	assert.Equal(t, mockGetBody, expectedBody)
+	assert.Equal(t, expectedBody, mockGetBody)
 }
 
 func TestGetContents(t *testing.T) {
+	t.Parallel()
 	s := setup()
 	opts := &github.RepositoryContentGetOptions{
 		Ref: "main",
 	}
 	_, _, resp, err := s.GetContents(context.Background(), "owner", "repo", "path", opts)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
 func TestRateLimit(t *testing.T) {
+	t.Parallel()
 	s := setup()
 	_, resp, err := s.RateLimit(context.Background())
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
 func TestGetUser(t *testing.T) {
+	t.Parallel()
 	s := setup()
 	_, resp, err := s.GetUser(context.Background(), "")
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }

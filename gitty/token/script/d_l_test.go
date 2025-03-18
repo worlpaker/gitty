@@ -4,47 +4,37 @@ package script
 
 import (
 	"bytes"
-	"fmt"
-	"os"
+	"errors"
 	"os/exec"
-	"syscall"
 	"testing"
 
 	"github.com/brianvoe/gofakeit/v7"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestRun(t *testing.T) {
-	// Discard output during tests.
-	defer func(stdout *os.File) {
-		os.Stdout = stdout
-	}(os.Stdout)
-	os.Stdout = os.NewFile(uintptr(syscall.Stdin), os.DevNull)
-
+	t.Parallel()
 	fakeKey := "GITTY_TEST_KEY"
 	fakeValue := gofakeit.LoremIpsumWord()
 
 	err := Run(fakeKey, fakeValue)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	err = Run(fakeKey, "")
 	// The result might not be nil in very rare cases.
 	// Error: &exec.ExitError{ProcessState:(*os.ProcessState)(0xc00017a288), Stderr:[]uint8(nil)}
 	if err != nil {
-		if e, ok := err.(*exec.ExitError); ok && !e.Success() {
+		var execErr *exec.ExitError
+		if errors.As(err, &execErr) && !execErr.Success() {
 			return
 		}
 	}
-	assert.Nil(t, err)
+	require.NoError(t, err)
 }
 
 func TestScript(t *testing.T) {
-	// Discard output during tests.
-	defer func(stdout *os.File) {
-		os.Stdout = stdout
-	}(os.Stdout)
-	os.Stdout = os.NewFile(uintptr(syscall.Stdin), os.DevNull)
-
+	t.Parallel()
 	fakeKey := "GITTY_TEST_KEY"
 	fakeValue := gofakeit.LoremIpsumWord()
 
@@ -61,23 +51,25 @@ func TestScript(t *testing.T) {
 		{
 			name:     "error",
 			script:   save(fakeKey, fakeValue),
-			expected: fmt.Errorf("exec: Stdout already set"),
+			expected: errors.New("exec: Stdout already set"),
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			if test.expected == nil {
 				t.Cleanup(func() {
-					err := delete(fakeKey).execute()
+					err := del(fakeKey).execute()
 					// The result might not be nil in very rare cases.
 					// Error: &exec.ExitError{ProcessState:(*os.ProcessState)(0xc00017a288), Stderr:[]uint8(nil)}
 					if err != nil {
-						if e, ok := err.(*exec.ExitError); ok && !e.Success() {
+						var execErr *exec.ExitError
+						if errors.As(err, &execErr) && !execErr.Success() {
 							return
 						}
 					}
-					assert.Nil(t, err)
+					require.NoError(t, err)
 				})
 			} else {
 				var buf bytes.Buffer

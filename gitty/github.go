@@ -43,7 +43,7 @@ type Client interface {
 }
 
 // Ensure service implements the Client interface.
-var _ Client = &service{}
+var _ Client = (*service)(nil)
 
 // Get issues a GET to the specified URL. If the response is one of the
 // following redirect codes, Get follows the redirect after calling the

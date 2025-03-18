@@ -14,7 +14,7 @@ import (
 var version string
 
 // run executes the program and handles graceful shutdown.
-func run() {
+func run() int {
 	// Graceful shutdown for Ctrl+C.
 	ctx, cancel := context.WithCancel(context.Background())
 	c := make(chan os.Signal, 1)
@@ -36,10 +36,12 @@ func run() {
 
 	// Execute the program.
 	if err := cmd.Execute(ctx, version); err != nil {
-		os.Exit(1)
+		return 1
 	}
+
+	return 0
 }
 
 func main() {
-	run()
+	os.Exit(run())
 }
