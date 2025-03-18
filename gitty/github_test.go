@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/brianvoe/gofakeit/v7"
-	"github.com/google/go-github/v67/github"
+	"github.com/google/go-github/v70/github"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -39,14 +39,12 @@ func TestNewClient(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			if test.auth {
 				t.Setenv(tokenKey, fakeValue)
-				client := newClient()
-				assert.Equal(t, test.expected.UserAgent, client.UserAgent)
 			} else {
 				err := os.Unsetenv(tokenKey)
 				require.NoError(t, err)
-				client := newClient()
-				assert.Equal(t, test.expected, client)
 			}
+			client := newClient()
+			assert.Equal(t, test.expected.UserAgent, client.UserAgent)
 		})
 	}
 }

@@ -4,7 +4,7 @@ go 1.23.0
 
 require (
 	github.com/brianvoe/gofakeit/v7 v7.2.1
-	github.com/google/go-github/v67 v67.0.0
+	github.com/google/go-github/v70 v70.0.0
 	github.com/spf13/cobra v1.9.1
 	github.com/stretchr/testify v1.10.0
 )
