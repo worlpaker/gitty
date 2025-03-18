@@ -29,17 +29,18 @@ func (s *Script) execute() error {
 
 // save creates a script to set an environment variable with a specified key and value.
 func save(key, value string) *Script {
-	arg := fmt.Sprintf("%s=%s", key, value)
+	arg := fmt.Sprintf("export %s=%s && echo 'export %s=%s' >> ~/.bashrc", key, value, key, value)
 	return &Script{
-		cmd: exec.Command("bash", "-c", "export", arg),
+		cmd: exec.Command("bash", "-c", arg),
 		msg: msgSaved,
 	}
 }
 
 // del creates a script to delete a key from the os environment.
 func del(key string) *Script {
+	arg := fmt.Sprintf("sed -i '/^export %s=/d' ~/.bashrc", key)
 	return &Script{
-		cmd: exec.Command("bash", "-c", "unset", key),
+		cmd: exec.Command("bash", "-c", arg),
 		msg: msgDeleted,
 	}
 }
