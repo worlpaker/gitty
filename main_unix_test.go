@@ -36,7 +36,7 @@ func TestMain(t *testing.T) {
 	go func() {
 		time.Sleep(100 * time.Millisecond)
 		err := syscall.Kill(cmd.Process.Pid, syscall.SIGTERM)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	}()
 
 	var execErr *exec.ExitError
