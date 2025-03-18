@@ -29,8 +29,9 @@ func (s *Script) execute() error {
 
 // save creates a script to set an environment variable with a specified key and value.
 func save(key, value string) *Script {
+	arg := fmt.Sprintf("%s=%s", key, value)
 	return &Script{
-		cmd: exec.Command("bash", "-c", "export", fmt.Sprintf("%s=%s", key, value)),
+		cmd: exec.Command("bash", "-c", "export", arg),
 		msg: msgSaved,
 	}
 }
