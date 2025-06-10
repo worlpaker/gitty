@@ -1,4 +1,4 @@
-# gitty
+# Gitty
 
 ![GitHub Latest Release](https://img.shields.io/github/v/release/worlpaker/gitty?logo=github)
 [![Go](https://github.com/worlpaker/gitty/actions/workflows/go.yml/badge.svg)](https://github.com/worlpaker/gitty/actions/workflows/go.yml)
@@ -11,7 +11,9 @@
 
 ## Overview
 
-Gitty is a CLI tool that helps you download GitHub files and directories directly! It is fast, simple, and works concurrently. Gitty is easy to use, making it perfect for downloading specific files and folders from large repositories.
+Gitty is a CLI tool that helps you download GitHub files and directories directly! It is fast, simple, and works concurrently.
+
+Gitty simplifies downloading a single folder from GitHub. It is perfect for downloading specific files and folders from large repositories without cloning them.
 
 ## Install
 
@@ -51,17 +53,17 @@ gitty github.com/worlpaker/go-syntax/tree/master/examples
 
 ## Authorization
 
-GitHub has **hourly** [rate limit](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api):
+GitHub has hourly [rate limit](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api):
 
-- For **unauthenticated** users: **60**
+- For unauthenticated users: 60
 
-- For **authenticated** users: **5000**
+- For authenticated users: 5000
 
-- For **enterprise cloud** users: **15000**
+- For enterprise cloud users: 15000
 
-Gitty retrieves your GitHub token from your os environment variable with `GH_TOKEN` key. Get your token from [GitHub Personal Tokens](https://github.com/settings/tokens). More details about tokens can be found on [Managing your personal access tokens](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens).
+Gitty authenticates using the `GH_TOKEN` environment variable. You can get a personal access token from [GitHub Personal Tokens](https://github.com/settings/tokens). For more details, see GitHub's guide on [managing your personal access tokens](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens).
 
-You can set your token manually in your os environment variable with `GH_TOKEN` key, or you can use **gitty**!
+You can set the `GH_TOKEN` environment variable manually, or you can use **gitty**!
 
 - Set token
 
@@ -81,7 +83,7 @@ gitty -u
 gitty -a
 ```
 
-- Check client auth status and remaninig rate limit
+- Check client auth status and remaining rate limit
 
 ```sh
 gitty -c
@@ -95,7 +97,7 @@ Gitty uses [go-github](https://github.com/google/go-github) to interact with Git
 
 ## Test
 
-Test coverage is **100%** for Windows, Linux and macOS (see: [gitty test commands](Makefile)).
+Test coverage is 100% for Windows, Linux and macOS (see: [gitty test commands](Makefile)).
 
 ## Contributing
 
