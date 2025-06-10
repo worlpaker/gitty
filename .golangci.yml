@@ -1,11 +1,11 @@
 # yaml-language-server: $schema=https://golangci-lint.run/jsonschema/golangci.jsonschema.json
 
+version: "2"
 run:
   allow-parallel-runners: true
-  timeout: 3m
 
 linters:
-  disable-all: true
+  default: none
   enable:
     - asasalint
     - bidichk
@@ -23,11 +23,8 @@ linters:
     - gocheckcompilerdirectives
     - gocognit
     - gocritic
-    - gofmt
-    - gofumpt
     - goprintffuncname
     - gosec
-    - gosimple
     - govet
     - grouper
     - inamedparam
@@ -46,7 +43,6 @@ linters:
     - reassign
     - revive
     - staticcheck
-    - stylecheck
     - testableexamples
     - testifylint
     - tparallel
@@ -57,13 +53,28 @@ linters:
     - usetesting
     - whitespace
 
-linters-settings:
-  govet:
-    enable-all: true
+  settings:
+    govet:
+      enable-all: true
 
-issues:
-  exclude-rules:
-    - path: (.+)_test.go
-      linters:
-        - govet
-      text: fieldalignment
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - govet
+        path: (.+)_test.go
+        text: fieldalignment
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+
+formatters:
+  enable:
+    - gofmt
+    - gofumpt
